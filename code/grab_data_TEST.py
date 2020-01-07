@@ -25,3 +25,8 @@ mean = dataset.variables['ozone_ug_per_m3_amean'][:]
 
 plt.plot(new_date,mean)
 plt.show()
+
+
+'''
+make some changes to script
+'''
