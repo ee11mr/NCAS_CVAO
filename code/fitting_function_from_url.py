@@ -23,10 +23,12 @@ def timestamp_to_date(times):
 filepath  = '/users/mjr583/scratch/NCAS_CVAO/CVAO_datasets/'
 savepath  = '/users/mjr583/scratch/NCAS_CVAO/plots/'
 
+
 S = ['O3']
 unit='ppbv'
 for n,species in enumerate(S):
     url = 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425081904.uv_abs.ozone.air.12y.1h.GB12L_CVO_Ozone_Thermo49series.GB12L_Thermo.lev2.nc'
+    url = 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20160101000000.20190425083930.online_crds.carbon_monoxide.air.3y.1h.GB12L_CVO_Picarro_G2401.GB12L_Picarro.lev2.nc'
     dataset = netCDF4.Dataset(url)
     species='ozone'
     spec=species
