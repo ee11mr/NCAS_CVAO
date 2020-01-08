@@ -40,6 +40,7 @@ dtf=pd.concat([hourly,ohourly], axis=1, sort=False)
 S = ['O3','CO','CH4','CO2','NO','propane','ethane','ethene','acetone','meoh','acetaldehyde',\
      'CHBr3', 'CH2Br2', 'CCl4', 'CH2I2', 'CH3I', 'CH2ICl',\
      'CHCl3', 'CH2BrCl', 'CH2IBr', 'CHBr2Cl',]
+S = ['O3']
 #S = ['acetone']
 for n,species in enumerate(S):
     print(species)
@@ -73,9 +74,42 @@ for n,species in enumerate(S):
     else:
         start_year='2007' ## CVAO dataset begins in 2007. For specific species add if statement to adjust start_year
         unit='ppb'
+        
+    ##new code       
+    import netCDF4
+    import datetime        
+    def timestamp_to_date(times):
+        new_date=[]
+        for t, tt in enumerate(times):
+            x = (datetime.datetime(1900,1,1,0,0) + datetime.timedelta(tt-1))
+            new_date.append(x)
+        return new_date
     
-    spec = species+suff
-    df = dtf[start_year:]
+    ##------------------Script-----------------------------------------------------
+    url = 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425081904.uv_abs.ozone.air.12y.1h.GB12L_CVO_Ozone_Thermo49series.GB12L_Thermo.lev2.nc'
+    dataset = netCDF4.Dataset(url)
+    species='ozone'
+    spec=species
+    start_year='2006'
+    
+    time = dataset.variables['time'][:]
+    new_date=np.array(timestamp_to_date(time))
+    mean = dataset.variables['ozone_ug_per_m3_amean'][:]
+    mean = dataset.variables['ozone_nmol_per_mol_amean'][:]
+    dtf = pd.DataFrame(mean)
+    dtf.index = new_date
+    dtf.columns = [species]
+    df = dtf.resample('M').mean()
+    
+    df = df.fillna(method='bfill')
+    idx = np.isfinite(df)
+    Y = df[idx] 
+    X = np.arange(len(Y))        
+            
+    ## new code    
+
+    #spec = species+suff
+    #df = dtf[start_year:]
     df[spec] = df[spec].fillna(method='bfill')
     
     idx = np.isfinite(df[spec])
@@ -95,7 +129,7 @@ for n,species in enumerate(S):
         return a + b*x + c2*x**2 + A1*np.sin(x/12*2*np.pi + s1) + A2*np.sin(2*x/12*2*np.pi + s2)
             
     target_func = new_func
-    stop
+    #stop
     popt, pcov = curve_fit(target_func, X, Y)#, maxfev=20000)
     rmse = np.round(np.sqrt(mean_squared_error(Y,target_func( X, *popt))),2)
     fig = plt.figure()

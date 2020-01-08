@@ -25,13 +25,16 @@ url = 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425
 dataset = netCDF4.Dataset(url)
 species='ozone'
 spec=species
+start_year='2006'
 
 time = dataset.variables['time'][:]
 new_date=np.array(timestamp_to_date(time))
 mean = dataset.variables['ozone_ug_per_m3_amean'][:]
-df = pd.DataFrame(mean)
-df.index = new_date
-df.columns = [species]
+mean = dataset.variables['ozone_nmol_per_mol_amean'][:]
+dtf = pd.DataFrame(mean)
+dtf.index = new_date
+dtf.columns = [species]
+df = dtf.resample('M').mean()
 
 df = df.fillna(method='bfill')
 idx = np.isfinite(df)
@@ -40,7 +43,7 @@ X = np.arange(len(Y))
 
 ''' Guess of polynomial terms '''
 z, p = np.polyfit(X, Y, 1)
-a = np.nanmean(df.resample('A').mean())  #31.08
+a = np.nanmean(dtf.resample('A').mean())  #31.08
 b = z
 c2 = .00001
 A1 = 5.1 
@@ -49,8 +52,8 @@ s1 = 1/12 * 2*np.pi
 s2 = 7/12 * 2*np.pi   
 def new_func(x,m,c,c0):
     return a + b*x + c2*x**2 + A1*np.sin(x/12*2*np.pi + s1) + A2*np.sin(2*x/12*2*np.pi + s2)
-        
 target_func = new_func
+
 popt, pcov = curve_fit(target_func, X, Y)#, maxfev=20000)
 rmse = np.round(np.sqrt(mean_squared_error(Y,target_func( X, *popt))),2)
 fig = plt.figure()
