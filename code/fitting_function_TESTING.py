@@ -77,7 +77,7 @@ for n,species in enumerate(S):
     spec = species+suff
     df = dtf[start_year:]
     df[spec] = df[spec].fillna(method='bfill')
-    
+    stop
     idx = np.isfinite(df[spec])
     Y = df[spec][idx] 
     X = np.arange(len(Y))

@@ -52,6 +52,10 @@ colors = ['#e5f5e0','#c7e9c0','R','#74c476','#41ab5d',\
 style=['-','--','-.',':']
 ## Choose the species - one at a time currently
 species = ['acetone','meoh','acetaldehyde','O3','CO','CH4 all','CO2']
+
+
+
+
 ## chose period to plot, starts at 2006, runs to 2019
 start_year = '2015'
 for spec in species:
