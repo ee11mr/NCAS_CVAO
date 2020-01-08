@@ -12,80 +12,20 @@ plt.rcParams['figure.figsize'] = (8,4)
 from scipy.optimize import curve_fit
 from sklearn.metrics import mean_squared_error, r2_score
 from matplotlib.offsetbox import AnchoredText
-
+import netCDF4
+import datetime        
+def timestamp_to_date(times):
+    new_date=[]
+    for t, tt in enumerate(times):
+        x = (datetime.datetime(1900,1,1,0,0) + datetime.timedelta(tt-1))
+        new_date.append(x)
+    return new_date
 filepath  = '/users/mjr583/scratch/NCAS_CVAO/CVAO_datasets/'
 savepath  = '/users/mjr583/scratch/NCAS_CVAO/plots/'
 
-filen = filepath+'20191007_CV_Merge.csv'
-dtf = pd.read_csv(filen, index_col=0,dtype={'Airmass':str})
-dtf.index = pd.to_datetime(dtf.index,format='%d/%m/%Y %H:%M')
-
-filen=filepath+'cv_ovocs_2018_M_Rowlinson.csv'
-odf = pd.read_csv(filen, index_col=0)
-odf.index = pd.to_datetime(odf.index,format='%d/%m/%Y %H:%M')
-
-cols=list(dtf) ; ocols = list(odf)
-for col in cols:
-    try:
-        dtf[col] = dtf[col].loc[~(dtf[col] <= 0. )]
-    except:
-        pass
-for col in ocols:
-    odf = odf.loc[~(odf[col] <= 0.)]
-cols=cols+ocols
-hourly=dtf.resample('M').mean()
-ohourly=odf.resample('M').mean()
-dtf=pd.concat([hourly,ohourly], axis=1, sort=False)
-
-S = ['O3','CO','CH4','CO2','NO','propane','ethane','ethene','acetone','meoh','acetaldehyde',\
-     'CHBr3', 'CH2Br2', 'CCl4', 'CH2I2', 'CH3I', 'CH2ICl',\
-     'CHCl3', 'CH2BrCl', 'CH2IBr', 'CHBr2Cl',]
 S = ['O3']
-#S = ['acetone']
+unit='ppbv'
 for n,species in enumerate(S):
-    print(species)
-    dtf['2009-07-01' : '2009-09-30'] = np.nan 
-    if species == 'O3':
-        print('a')
-        suff = '' ; unit=' (ppbv)' ; start_year='2007' ## O3 data begins in 2007
-    elif species == 'CO':
-        print('b')
-        suff = ' (ppbV)' ; unit=suff ; start_year='2008' ## CO data begins in 2008
-    elif species == 'CO2':
-        print('c')
-        suff = ' (ppmV)' ; unit=suff ; start_year='2015' ## CO2 data begins in 2015
-    elif species == 'CH4':
-        print('d')
-        suff = ' all (ppbV)' ; unit=suff[-7:] ; start_year='2007' ## Regular CH4 data begins in 2015
-    elif species == 'NO':
-        print('e')
-        suff = ' (pptV)' ; unit = suff ; start_year='2008' 
-    elif species=='acetone': 
-        suff = '' ; unit = ' (pptV)' ; start_year='2015' 
-    elif species=='meoh': 
-        suff = '' ; unit = ' (pptV)' ; start_year='2015' 
-    elif species=='acetaldehyde': 
-        suff = '' ; unit = ' (pptV)' ; start_year='2015' 
-    elif n>10:
-        suff = ' (pptV)' ; unit = suff ; start_year='2015' 
-    elif 'ethane' or 'ethene' or 'propane' in species:
-        print('f')
-        suff = ' (pptV)' ; unit = suff ; start_year='2010' 
-    else:
-        start_year='2007' ## CVAO dataset begins in 2007. For specific species add if statement to adjust start_year
-        unit='ppb'
-        
-    ##new code       
-    import netCDF4
-    import datetime        
-    def timestamp_to_date(times):
-        new_date=[]
-        for t, tt in enumerate(times):
-            x = (datetime.datetime(1900,1,1,0,0) + datetime.timedelta(tt-1))
-            new_date.append(x)
-        return new_date
-    
-    ##------------------Script-----------------------------------------------------
     url = 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425081904.uv_abs.ozone.air.12y.1h.GB12L_CVO_Ozone_Thermo49series.GB12L_Thermo.lev2.nc'
     dataset = netCDF4.Dataset(url)
     species='ozone'
@@ -94,28 +34,18 @@ for n,species in enumerate(S):
     
     time = dataset.variables['time'][:]
     new_date=np.array(timestamp_to_date(time))
-    mean = dataset.variables['ozone_ug_per_m3_amean'][:]
-    mean = dataset.variables['ozone_nmol_per_mol_amean'][:]
+    mean = dataset.variables['ozone_nmol_per_mol_amean'][:] 
     dtf = pd.DataFrame(mean)
     dtf.index = new_date
     dtf.columns = [species]
     df = dtf.resample('M').mean()
     
-    df = df.fillna(method='bfill')
-    idx = np.isfinite(df)
-    Y = df[idx] 
-    X = np.arange(len(Y))        
-            
-    ## new code    
+    XX = np.arange(len(df))
+    idx = np.isfinite(df.ozone)
+    
+    Y = df[idx].ozone 
+    X = XX[idx]
 
-    #spec = species+suff
-    #df = dtf[start_year:]
-    df[spec] = df[spec].fillna(method='bfill')
-    
-    idx = np.isfinite(df[spec])
-    Y = df[spec][idx] 
-    X = np.arange(len(Y))
-    
     ''' Guess of polynomial terms '''
     z, p = np.polyfit(X, Y, 1)
     a = np.nanmean(df[spec][start_year].resample('A').mean())  #31.08
