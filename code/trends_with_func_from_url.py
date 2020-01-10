@@ -122,7 +122,8 @@ def remove_nan_rows(df):
 filepath  = '/users/mjr583/scratch/NCAS_CVAO/CVAO_datasets/'
 savepath  = '/users/mjr583/scratch/NCAS_CVAO/plots/'
 d = {
-     'O3' : {'url' : 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425081904.uv_abs.ozone.air.12y.1h.GB12L_CVO_Ozone_Thermo49series.GB12L_Thermo.lev2.nc',
+     'O3' : {   'ceda_url' : 'http://dap.ceda.ac.uk/thredds/dodsC/badc/capeverde/data/cv-tei-o3/2019/ncas-tei-49i-1_cvao_20190101_o3-concentration_v1.nc',
+                'url' : 'http://thredds.nilu.no/thredds/dodsC/ebas/CV0001G.20061002000000.20190425081904.uv_abs.ozone.air.12y.1h.GB12L_CVO_Ozone_Thermo49series.GB12L_Thermo.lev2.nc',
                 'species' : 'O3',
                 'longname' : 'ozone',
                 'abbr' : '$O_3$',
@@ -176,15 +177,8 @@ d = {
 for i in d:
     dataset, df = get_dataset_as_df(d[i])
     start, end, years = get_start_year(dataset, d[i]) 
-    '''
-    XX = np.arange(len(df))
-    idx = np.isfinite(df[i])    
-    Y = df[idx][i]
-    X = XX[idx]
-    '''
     X, Y = remove_nan_rows(df[i])
     output = curve_fit_function(df, X, Y, start)
-    
     plot_fitted_curve(d[i],X, Y, output)
     plot_trend_breakdown(d[i], X, Y, output[5], start)
     print(i, 'done')
