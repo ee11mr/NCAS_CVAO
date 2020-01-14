@@ -24,7 +24,7 @@ def get_dataset_as_df(D, timestep='M'):
     dtf = pd.DataFrame(mean)#, columns=d['species'])
     dtf.index = new_date
     dtf.columns = [D['species']]
-    df = dtf.resample('M').mean()
+    df = dtf.resample(timestep).mean()
     
     return dataset, df
 

@@ -95,7 +95,7 @@ for n,species in enumerate(S):
         return a + b*x + c2*x**2 + A1*np.sin(x/12*2*np.pi + s1) + A2*np.sin(2*x/12*2*np.pi + s2)
             
     target_func = new_func
-    stop
+
     popt, pcov = curve_fit(target_func, X, Y)#, maxfev=20000)
     rmse = np.round(np.sqrt(mean_squared_error(Y,target_func( X, *popt))),2)
     fig = plt.figure()
