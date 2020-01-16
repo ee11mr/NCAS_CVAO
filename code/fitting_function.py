@@ -25,7 +25,7 @@ for col in cols:
         dtf[col] = dtf[col].loc[~(dtf[col] <= 0.)]
     except:
         pass
-species = 'propane'
+species = 'O3'
 dtf['2009-07-01' : '2009-09-30'] = np.nan 
 if species == 'O3':
     suff = '' ; unit=' (ppbv)' ; start_year='2007' ## CO data begins in 2008
@@ -57,10 +57,18 @@ z, p = np.polyfit(X, Y, 1)
 a = np.nanmean(df[spec][start_year].resample('A').mean())  #31.08
 b = z
 c2 = .00001
-A1 = 5.1 
+A1 = 50.1 
 A2 = 0.5
 s1 = 1/12 * 2*np.pi
 s2 = 7/12 * 2*np.pi   
+
+a = 32.9
+b = 0.35
+c2 = -0.0025
+A1 = 5.7 
+A2 = 3.1
+s1 = 0.52
+s2 = -2.37
 def new_func(x,m,c,c0):
     return a + b*x + c2*x**2 + A1*np.sin(x/12*2*np.pi + s1) + A2*np.sin(2*x/12*2*np.pi + s2)
         
@@ -74,7 +82,8 @@ ax1.plot(X, target_func(X, *popt), '--')
 plt.text(.75,.1, 'RMSE='+str(rmse), fontsize=14,transform=ax1.transAxes,)#, boxstyle='round,pad=1'))
 years=np.arange(int(start_year),2020)
 plt.xticks(np.arange(0, len(X), 12), years)
-plt.close()
+plt.show()
+#plt.close()
 
 ''' With curve fitting to minimise error '''
 def re_func(t,a,b,c2,A1,s1,A2,s2):
@@ -182,7 +191,7 @@ ax1.plot(X, var)
 ax1.set_ylabel(species+unit)
 plt.text(.75,h, 'RMSE='+str(rmse)+' '+unit[2:-2]+'\n$r^2$='+str(r2)+'%', fontsize=12,transform=ax1.transAxes,)#, boxstyle='round,pad=1'))
 plt.xticks(np.arange(0, len(X), 12), years)
-plt.show()
+#plt.show()
 plt.close()
 
 detrended = [Y[i] - c[1]*i for i in range(0, len(X))]
@@ -193,7 +202,7 @@ plt.plot(X,detrended,label='Detrend b term')
 plt.plot(X,detrended2,label='Detrend b + c terms')
 plt.xticks(np.arange(0, len(X), 12), years)
 plt.legend()
-plt.show()
+#plt.show()
 plt.close()
 
 ds = pd.DataFrame(detrended2[:])

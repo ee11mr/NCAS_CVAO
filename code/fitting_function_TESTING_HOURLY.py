@@ -34,7 +34,7 @@ for col in cols:
 for col in ocols:
     odf = odf.loc[~(odf[col] <= 0.)]
 cols=cols+ocols
-stop
+
 hourly=dtf.resample('H').mean()
 ohourly=odf.resample('H').mean()
 

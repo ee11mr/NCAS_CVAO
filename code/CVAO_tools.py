@@ -18,7 +18,7 @@ import datetime
 def get_dataset_from_merge(d, timestep='M'):
     filepath  = '/users/mjr583/scratch/NCAS_CVAO/CVAO_datasets/'
     filen = filepath+'20191007_CV_Merge.csv'
-    dtf = pd.read_csv(filen, index_col=0,dtype={'Airmass':str})
+    dtf = pd.read_csv(filen, index_col=0,dtype={'Airmass':str, 'New_Airmass':str})
     dtf.index = pd.to_datetime(dtf.index,format='%d/%m/%Y %H:%M')
 
     filen=filepath+'cv_ovocs_2018_M_Rowlinson.csv'
@@ -38,7 +38,7 @@ def get_dataset_from_merge(d, timestep='M'):
     df=dtf.resample('H').mean()
     odf=odf.resample('H').mean()
     dtf=pd.concat([df,odf], axis=1, sort=False)
-    dtf = dtf[d['species']+d['merge_suff']]
+    dtf = dtf[d['merge_pref']+d['species']+d['merge_suff']]
     dtf = pd.DataFrame(dtf)
     dtf.columns = [d['species']]
 
@@ -48,10 +48,10 @@ def get_dataset_from_merge(d, timestep='M'):
 
 
 def get_dataset_as_df(D, timestep='M'):    
-    dataset = netCDF4.Dataset(D['url'])
+    dataset = netCDF4.Dataset(D['ebas_url'])
     time = dataset.variables['time'][:]
     time=np.array(timestamp_to_date(time))
-    mean = dataset.variables[D['var_name']][:] 
+    mean = dataset.variables[D['ebas_var_name']][:] 
     
     dtf = pd.DataFrame(mean)
     dtf.index = time
@@ -63,7 +63,39 @@ def get_dataset_as_df(D, timestep='M'):
     return dataset, df, dates
 
 
+def get_nox_data(d, timestep='M'):
+    filepath  = '/users/mjr583/scratch/NCAS_CVAO/CVAO_datasets/'
+    filen = filepath+'Hourly_NOx_2007-2018_with_flags.csv'
+    df = pd.read_csv(filen, index_col=0)
+    df.index = pd.to_datetime(df.index,format='%Y-%m-%d %H:%M:%S')
+    
+    cols=list(df) 
+    for col in cols:
+        try:
+            df[col] = df[col].loc[~(df[col] < 0. )]
+        except:
+            pass
+
+    if d['species'] == 'NOx':
+        no_flag = df.loc[df['NO_Ozone_corrected_Flag'] == 0.0]
+        no = no_flag['NO_pptV_Ozone_corrected']
+    
+        no2_flag = df.loc[df['NO2_Ozone_corrected_Flag'] == 0.0]
+        no2 = no2_flag['NO2_pptV_Ozone_corrected']
+        
+        df = pd.DataFrame(no+no2)
+    else:
+        df = df.loc[df[d['species']+'_Ozone_corrected_Flag'] == 0.0]
+        df = df[d['species']+'_pptV_Ozone_corrected']
+        df = pd.DataFrame(df)
+    df.columns = [d['species']]
+    df = df.resample(timestep).mean()
+    dates = df.index
+    return df, dates
+
+
 def get_start_year(dataset, d):
+    
     try:
         start_year = eval(dataset.comment)['Startdate'][:4]
     except:
@@ -130,38 +162,81 @@ def curve_fit_function(df,X,Y, start, timestep='monthly'):
     return y, var, z, rmse, r2, c
 
 def plot_trend_breakdown(d, X, Y, c, start_year,times,timestep,savepath=''):
-    years=np.arange(int(start_year),2020)
     detrended = [Y[i] - c[1]*i for i in range(0, len(X))]
     detrended2 = np.array([detrended[i] - c[2]*i**2 for i in range(0, len(X))])
     plt.plot(times,Y, label='Obervations')
     plt.plot(times,detrended,label='Detrend b')
     plt.plot(times,detrended2,label='Detrend b + c')
-    
+    plt.ylabel(d['abbr']+' ('+d['unit']+')')
     plt.legend()
-    plt.savefig(savepath+d['species']+'_trend_breakdown_'+timestep+'mean.png')
+    plt.savefig(savepath+d['species']+'_trend_breakdown.png', dpi=300)
     plt.close()
     return
 
 
 def plot_fitted_curve(d,X,Y,output,times,timestep, savepath=''):
+    if timestep=='H':
+        t='hourly'
+        s=0.05
+        l=0.2
+    elif timestep=='M':
+        t='monthly'
+        s=0.5
+        l=2
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
-    ax1.plot(times, Y, 'ro', markersize=0.5)
-    ax1.plot(times, output[0], '--')
+    ax1.plot(times, Y, 'ro', markersize=s)
+    ax1.plot(times, output[0], '--', linewidth=l )
     ax1.plot(times, output[1], 'k')
-    ax1.set_ylabel(d['abbr']+' '+d['unit'])
+    ax1.set_ylabel(d['abbr']+' ('+d['unit']+')')
+    ax1.set_yscale(d['yscale'])
     if output[2]>0.: # moves legend based on direction of trend
         loc=2
     elif output[2]<0.:
         loc=1
     txt = AnchoredText('RMSE='+str(output[3])+' '+d['unit']+'\n$r^2$='+str(output[4])+'%', loc=loc)
     ax1.add_artist(txt)
-    plt.savefig(savepath+d['species']+'_'+timestep+'mean.png')
+    plt.savefig(savepath+d['species']+'_'+t+'_mean.png', dpi=300)
+    plt.close()
+    return
+
+
+def plot_residual(d,X,Y,output,times,timestep, savepath='', nbins=25):
+    if timestep=='H':
+        t='hourly'
+    elif timestep=='M':
+        t='monthly'
+    fig = plt.figure()
+    ax1 = fig.add_subplot(211)
+    ax1.plot(times, Y-output[0], 'g', label='Residual')
+    ax1.set_ylabel(d['abbr']+' ('+d['unit']+')')
+    
+    ax2 = fig.add_subplot(212)
+    ax2.hist( Y-output[0], bins=nbins, density=True, alpha=0.6, color='g')
+    ax2.set_xlabel(d['abbr']+' ('+d['unit']+')')
+    ax2.set_ylabel('freq')
+    fig.suptitle('Residual - '+t+' means')
+    plt.savefig(savepath+d['species']+'_'+t+'_residual.png', dpi=300)
     plt.close()
     return
 
 
 def remove_nan_rows(df,times):
+    '''
+    Remove nan values from dataset.
+
+    Parameters
+    ----------
+    df (array): Variable dataset
+    times (array): Index/timestep for df
+
+    Returns
+    -------
+    X (array) : Nan corrected array of time integers
+    Y (pd.Series) : Nan corrected concnetrations
+    time (array) : Nan corrected datetime array
+    Notes
+    '''
     XX = np.arange(len(df))
     idx = np.isfinite(df)    
     Y = df[idx]
@@ -190,24 +265,34 @@ def plot_trend_with_func_from_dict(d, timestep='M', force_merge=False,\
     Notes
     '''
     for i in d:
-        print(i)
         if force_merge == False:
-            try:
-                dataset, df, time = get_dataset_as_df(d[i], timestep=timestep)
-                start, end, years = get_start_year(dataset, d[i]) 
-            except:
-                df, time = get_dataset_from_merge(d[i], timestep=timestep)
-                start, end, years = get_start_year_merge(df) 
-                
+            if i == 'NO' or i=='NO2' or i=='NOx':
+                df, time = get_nox_data(d[i], timestep=timestep)
+                start, end, years = get_start_year_merge(df)  
+            else:
+                try:
+                    dataset, df, time = get_dataset_as_df(d[i], timestep=timestep)
+                    start, end, years = get_start_year(dataset, d[i]) 
+                except:
+                    df, time = get_dataset_from_merge(d[i], timestep=timestep)
+                    start, end, years = get_start_year_merge(df)                
         elif force_merge== True:
             df, time = get_dataset_from_merge(d[i], timestep=timestep)
             start, end, years = get_start_year_merge(df) 
             plt.plot(df)
             
         X, Y, time = remove_nan_rows(df[i], time)
-        output = curve_fit_function(df, X, Y, start, timestep=timestep)
-        plot_fitted_curve(d[i],X, Y, output, times=time, timestep=timestep, savepath=savepath)
-        if timestep=='M':
-            plot_trend_breakdown(d[i], X, Y, output[5], start, times=time, timestep=timestep,savepath=savepath)
-        print(i, 'done')
-    return
+        if X.size == 0:
+            print('No values for ', df.columns[0])
+            pass
+        elif Y.size <=5:
+            print('Insufficient data for ', i)
+            pass
+        else:
+            output = curve_fit_function(df, X, Y, start, timestep=timestep)
+            plot_fitted_curve(d[i],X, Y, output, times=time, timestep=timestep, savepath=savepath)
+            plot_residual(d[i],X, Y, output, times=time, timestep=timestep, savepath=savepath)
+            if timestep=='M':
+                plot_trend_breakdown(d[i], X, Y, output[5], start, times=time, timestep=timestep,savepath=savepath)
+            print(i, 'done')
+    return 
